@@ -19,29 +19,29 @@ sys.path.append(FILE.parents[0].as_posix())
 
 
 @torch.no_grad()
-def run(weights,  # model.pt path(s)
-        source,  # file/dir
-        img_size,  # inference size (pixels)
-        conf_threshold,  # confidence threshold
+def run(weights,        # model.pt path(s)
+        source,         # file/dir
+        img_size,       # inference size (pixels)
+        conf_threshold, # confidence threshold
         iou_threshold,  # NMS IOU threshold
-        max_det,  # maximum detections per image
-        device,  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-        view_img,  # show results
-        save_txt,  # save results to *.txt
-        save_conf,  # save confidences in --save-txt labels
-        save_crop,  # save cropped prediction boxes
-        nosave,  # do not save images
-        classes,  # filter by class: --class 0, or --class 0 2 3
-        agnostic_nms,  # class-agnostic NMS
-        augment,  # augmented inference
-        visualize,  # visualize features
-        dir,  # save results to results/detect/
-        exist_ok,  # existing results/detect/ ok, do not increment
-        line_thickness,  # bounding box thickness (pixels)
-        hide_labels,  # hide labels
-        hide_conf,  # hide confidences
-        half,  # use FP16 half-precision inference
-        ):
+        max_det,        # maximum detections per image
+        device,         # cuda device, i.e. 0 or 0,1,2,3 or cpu
+        view_img,       # show results
+        save_txt,       # save results to *.txt
+        save_conf,      # save confidences in --save-txt labels
+        save_crop,      # save cropped prediction boxes
+        nosave,         # do not save images
+        classes,        # filter by class: --class 0, or --class 0 2 3
+        agnostic_nms,   # class-agnostic NMS
+        augment,        # augmented inference
+        visualize,      # visualize features
+        dir,            # save results to results/detect/
+        exist_ok,       # existing results/detect/ ok, do not increment
+        line_thickness, # bounding box thickness (pixels)
+        hide_labels,    # hide labels
+        hide_conf,      # hide confidences
+        half,           # use FP16 half-precision inference
+    ):
     save_img = not nosave and not source.endswith('.txt')  # save inference images
 
     # Directories
@@ -85,7 +85,6 @@ def run(weights,  # model.pt path(s)
         dt[0] += t2 - t1
 
         # Inference
-
         visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
         pred = model(img, augment=augment, visualize=visualize)[0]
         t3 = time_sync()

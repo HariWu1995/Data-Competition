@@ -3,38 +3,40 @@ Source: YOLOv5 🚀 by Ultralytics https://github.com/ultralytics/yolov5
 Dataloaders and dataset utils
 """
 
+import os
 import glob
 import hashlib
 import json
+import yaml
 import logging
-import os
 import random
 import shutil
 import time
-from itertools import repeat
-from multiprocessing.pool import ThreadPool, Pool
+from tqdm import tqdm
 from pathlib import Path
+from itertools import repeat
 from threading import Thread
+from multiprocessing.pool import ThreadPool, Pool
 
 import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
-import yaml
-from PIL import Image, ExifTags
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from PIL import Image, ExifTags
 
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
 from utils.general import check_dataset, check_requirements, check_yaml, clean_str, segments2boxes, \
-    xywh2xyxy, xywhn2xyxy, xyxy2xywhn, xyn2xy
+                            xywh2xyxy, xywhn2xyxy, xyxy2xywhn, xyn2xy
 from utils.torch_utils import torch_distributed_zero_first
+
 
 # Parameters
 HELP_URL = 'https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data'
 IMG_FORMATS = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp', 'mpo']  # acceptable image suffixes
 VID_FORMATS = ['mov', 'avi', 'mp4', 'mpg', 'mpeg', 'm4v', 'wmv', 'mkv']  # acceptable video suffixes
 NUM_THREADS = min(8, os.cpu_count())  # number of multiprocessing threads
+
 
 # Get orientation exif tag
 for orientation in ExifTags.TAGS.keys():
@@ -76,14 +78,15 @@ def exif_transpose(image):
     exif = image.getexif()
     orientation = exif.get(0x0112, 1)  # default 1
     if orientation > 1:
-        method = {2: Image.FLIP_LEFT_RIGHT,
-                  3: Image.ROTATE_180,
-                  4: Image.FLIP_TOP_BOTTOM,
-                  5: Image.TRANSPOSE,
-                  6: Image.ROTATE_270,
-                  7: Image.TRANSVERSE,
-                  8: Image.ROTATE_90,
-                  }.get(orientation)
+        method = {
+            2: Image.FLIP_LEFT_RIGHT,
+            3: Image.ROTATE_180,
+            4: Image.FLIP_TOP_BOTTOM,
+            5: Image.TRANSPOSE,
+            6: Image.ROTATE_270,
+            7: Image.TRANSVERSE,
+            8: Image.ROTATE_90,
+        }.get(orientation)
         if method is not None:
             image = image.transpose(method)
             del exif[0x0112]
@@ -93,7 +96,8 @@ def exif_transpose(image):
 
 def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=None, augment=False, cache=False, pad=0.0,
                       rect=False, rank=-1, workers=8, image_weights=False, quad=False, prefix=''):
-    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
+    # Make sure only the first process in DDP process the dataset first, 
+    # and the following others can use the cache
     with torch_distributed_zero_first(rank):
         dataset = LoadImagesAndLabels(path, imgsz, batch_size,
                                       augment=augment,  # augment images
@@ -109,7 +113,7 @@ def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=Non
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, workers])  # number of workers
     sampler = torch.utils.data.distributed.DistributedSampler(dataset) if rank != -1 else None
-    loader = torch.utils.data.DataLoader if image_weights else InfiniteDataLoader
+    loader = torch.utils.data.dataloader.DataLoader if image_weights else InfiniteDataLoader
     # Use torch.utils.config.DataLoader() if dataset.properties will update during training else InfiniteDataLoader()
     dataloader = loader(dataset,
                         batch_size=batch_size,
@@ -396,6 +400,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             self.img_files = sorted([x.replace('/', os.sep) for x in f if x.split('.')[-1].lower() in IMG_FORMATS])
             # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in img_formats])  # pathlib
             assert self.img_files, f'{prefix}No images found'
+        
         except Exception as e:
             raise Exception(f'{prefix}Error loading config from {path}: {e}\nSee {HELP_URL}')
 
@@ -441,9 +446,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             s = self.shapes  # wh
             ar = s[:, 1] / s[:, 0]  # aspect ratio
             irect = ar.argsort()
-            self.img_files = [self.img_files[i] for i in irect]
+            self.img_files     = [self.img_files[i] for i in irect]
             self.label_files = [self.label_files[i] for i in irect]
-            self.labels = [self.labels[i] for i in irect]
+            self.labels      = [self.labels[i]      for i in irect]
             self.shapes = s[irect]  # wh
             ar = ar[irect]
 
@@ -488,7 +493,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         desc = f"{prefix}Scanning '{path.parent / path.stem}' images and labels..."
         with Pool(NUM_THREADS) as pool:
             pbar = tqdm(pool.imap_unordered(verify_image_label, zip(self.img_files, self.label_files, repeat(prefix))),
-                        desc=desc, total=len(self.img_files))
+                        desc=desc, 
+                        total=len(self.img_files))
             for im_file, l, shape, segments, nm_f, nf_f, ne_f, nc_f, msg in pbar:
                 nm += nm_f
                 nf += nf_f
@@ -613,9 +619,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         n = len(shapes) // 4
         img4, label4, path4, shapes4 = [], [], path[:n], shapes[:n]
 
-        ho = torch.tensor([[0., 0, 0, 1, 0, 0]])
-        wo = torch.tensor([[0., 0, 1, 0, 0, 0]])
-        s = torch.tensor([[1, 1, .5, .5, .5, .5]])  # scale
+        ho = torch.tensor([[0., 0., 0., 1., 0., 0.]])
+        wo = torch.tensor([[0., 0., 1., 0., 0., 0.]])
+        s  = torch.tensor([[1., 1., .5, .5, .5, .5]])  # scale
         for i in range(n):  # zidane torch.zeros(16,3,720,1280)  # BCHW
             i *= 4
             if random.random() < 0.5:
@@ -839,8 +845,11 @@ def extract_boxes(path='../datasets/coco128'):  # from utils.datasets import *; 
 
 
 def autosplit(path='../datasets/coco128/images', weights=(0.9, 0.1, 0.0), annotated_only=False):
-    """ Autosplit a dataset into train/val/test splits and save path/autosplit_*.txt files
+    """ 
+    Autosplit a dataset into train/val/test splits and save path/autosplit_*.txt files
+    
     Usage: from utils.datasets import *; autosplit()
+
     Arguments
         path:            Path to images directory
         weights:         Train, val, test weights (list, tuple)
@@ -909,10 +918,13 @@ def verify_image_label(args):
 
 
 def dataset_stats(path='coco128.yaml', autodownload=False, verbose=False, profile=False, hub=False):
-    """ Return dataset statistics dictionary with images and instances counts per split per class
+    """ 
+    Return dataset statistics dictionary with images and instances counts per split per class
+
     To run in parent directory: export PYTHONPATH="$PWD/yolov5"
     Usage1: from utils.datasets import *; dataset_stats('coco128.yaml', autodownload=True)
     Usage2: from utils.datasets import *; dataset_stats('../datasets/coco128_with_yaml.zip')
+    
     Arguments
         path:           Path to config.yaml or config.zip (with config.yaml inside config.zip)
         autodownload:   Attempt to download dataset if not found locally
