@@ -21,9 +21,9 @@ ROOT = FILE.parents[1]  # yolov5/ dir
 sys.path.append(ROOT.as_posix())  # add yolov5/ to path
 
 import numpy as np
-import tensorflow as tf
 import torch
 import torch.nn as nn
+import tensorflow as tf
 from tensorflow import keras
 
 from models.common import Conv, Bottleneck, SPP, DWConv, Focus, BottleneckCSP, Concat, autopad, C3

@@ -6,14 +6,15 @@ import logging
 import argparse
 from pathlib import Path
 from copy import deepcopy
+from tqdm import tqdm
 
 import yaml
-import torch
 import numpy as np
-from tqdm import tqdm
+
+import torch
 import torch.nn as nn
-from torch.cuda import amp
 import torch.nn.functional as F
+from torch.cuda import amp
 from torch.optim import Adam, SGD, lr_scheduler
 
 import val
@@ -42,10 +43,11 @@ def train(hyp,
           callbacks
           ):
     [save_dir, epochs, batch_size, pretrained_path,
-     evolve, data_cfg, model_cfg, resume, no_val, no_save, workers] = Path(args.save_dir), args.epochs, \
-                                                                      args.batch_size, args.weights, \
-                                                                      args.evolve, args.data_cfg, args.model_cfg, \
-                                                                      args.resume, args.noval, args.nosave, args.workers
+     evolve, data_cfg, model_cfg, resume, 
+     no_val, no_save, workers] = Path(args.save_dir), args.epochs, \
+                                      args.batch_size, args.weights, \
+                                      args.evolve, args.data_cfg, args.model_cfg, \
+                                      args.resume, args.noval, args.nosave, args.workers
 
     # Directories
     weight_path = save_dir / 'weights'  # weights dir
@@ -214,15 +216,14 @@ def train(hyp,
     callbacks.run('on_pretrain_routine_end')
 
     # Model parameters
-    hyp['box'] *= 3. / nl  # scale to layers
-    hyp['cls'] *= num_class / 80. * 3. / nl  # scale to classes and layers
-    hyp['obj'] *= (img_size / 640) ** 2 * 3. / nl  # scale to image size and layers
+    hyp['box'] *= 3. / nl                           # scale to layers
+    hyp['cls'] *= num_class / 80. * 3. / nl         # scale to classes and layers
+    hyp['obj'] *= (img_size / 640) ** 2 * 3. / nl   # scale to image size and layers
     hyp['label_smoothing'] = args.label_smoothing
     model.nc = num_class  # attach number of classes to model
     model.hyp = hyp  # attach hyper parameters to model
-    model.class_weights = labels_to_class_weights(dataset.labels, num_class).to(
-        device) * num_class  # attach class weights
     model.names = class_name
+    model.class_weights = labels_to_class_weights(dataset.labels, num_class).to(device) * num_class  # attach class weights
 
     # Start training
     t0 = time.time()
